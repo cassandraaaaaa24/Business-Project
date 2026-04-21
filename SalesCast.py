@@ -131,7 +131,7 @@ class SalesPredictor:
         tk.Label(inner, text="  /  Predictive Analytics", font=("Courier", 11),
                  bg=PANEL, fg=SUBTEXT).pack(side="left")
 
-        badge = tk.Label(bar, text="LINEAR REGRESSION",
+        badge = tk.Label(bar, text="MULTI-MODEL",
                          font=("Courier", 8, "bold"),
                          bg=ACCENT, fg=BG, padx=10, pady=4)
         badge.pack(side="right", anchor="center", padx=24)
@@ -140,8 +140,51 @@ class SalesPredictor:
         col = tk.Frame(parent, bg=BG)
         col.grid(row=0, column=0, sticky="nsew", padx=(0, 12), pady=12)
 
+        # Create scrollable canvas
+        canvas = tk.Canvas(col, bg=BG, highlightthickness=0)
+        scrollbar = tk.Scrollbar(col, bg=PANEL, troughcolor=PANEL,
+                                relief="flat", width=10)
+        scrollable_frame = tk.Frame(canvas, bg=BG)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.configure(command=canvas.yview)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Bind mousewheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        # ── Model Guide card ──
+        card0, inner0 = section_card(scrollable_frame, "00  Algorithm Guide")
+        card0.pack(fill="x", pady=(0, 10))
+
+        models_info = [
+            ("LINEAR REGRESSION", "Fast, interpretable, works for linear relationships."),
+            ("RIDGE", "Prevents overfitting through regularization."),
+            ("LASSO", "Feature selection via regularization."),
+            ("RANDOMFOREST", "Handles non-linear patterns well."),
+            ("SVR", "Support vectors for complex boundaries."),
+        ]
+
+        for model_name, desc in models_info:
+            frame = tk.Frame(inner0, bg=PANEL)
+            frame.pack(fill="x", pady=(0, 6))
+            tk.Label(frame, text=model_name, font=("Courier", 7, "bold"),
+                     bg=PANEL, fg=ACCENT).pack(anchor="w")
+            tk.Label(frame, text=desc, font=("Courier", 7),
+                     bg=PANEL, fg=SUBTEXT, wraplength=200, justify="left").pack(anchor="w", padx=(8, 0))
+
         # ── Load card ──
-        card, inner = section_card(col, "01  Data Source")
+        card, inner = section_card(scrollable_frame, "01  Data Source")
         card.pack(fill="x", pady=(0, 10))
 
         self.file_label = tk.Label(
@@ -153,7 +196,7 @@ class SalesPredictor:
                       style="primary", width=22).pack(fill="x")
 
         # ── Columns card ──
-        card2, inner2 = section_card(col, "02  Feature Columns")
+        card2, inner2 = section_card(scrollable_frame, "02  Feature Columns")
         card2.pack(fill="both", expand=True, pady=(0, 10))
 
         tk.Label(inner2, text="CTRL+click to select multiple",
@@ -182,7 +225,7 @@ class SalesPredictor:
         sb.config(command=self.columns_list.yview)
 
         # ── Target card ──
-        card3, inner3 = section_card(col, "03  Target Column")
+        card3, inner3 = section_card(scrollable_frame, "03  Target Column")
         card3.pack(fill="x")
 
         tk.Label(inner3, text="Column name (e.g. Sales)",
@@ -202,7 +245,7 @@ class SalesPredictor:
         self.target_entry.pack(fill="x")
 
         # ── Scaling option ──
-        card4, inner4 = section_card(col, "04  Preprocessing")
+        card4, inner4 = section_card(scrollable_frame, "04  Preprocessing")
         card4.pack(fill="x", pady=(10, 0))
 
         scale_check = tk.Checkbutton(
@@ -214,7 +257,7 @@ class SalesPredictor:
         scale_check.pack(anchor="w", pady=4)
 
         # ── Model selection ──
-        card5, inner5 = section_card(col, "05  Algorithm")
+        card5, inner5 = section_card(scrollable_frame, "05  Algorithm")
         card5.pack(fill="x", pady=(10, 0))
 
         tk.Label(inner5, text="Select regression model:",
