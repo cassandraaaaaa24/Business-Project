@@ -440,6 +440,15 @@ class SalesPredictor:
                 ("divider", None),
                 ("metric", ("Scaling", "Enabled" if self.scaler else "Disabled")),
             ]
+            
+            # Add feature importance
+            importance = self._get_feature_importance(self.feature_columns)
+            if importance:
+                lines.append(("divider", None))
+                lines.append(("title", "Feature Importance"))
+                for feat, imp in importance[:5]:  # Top 5 features
+                    lines.append(("metric", (f"  {feat}", f"{imp:+.4f}")))
+            
             self._show_result_text(lines)
             self._set_status(f"{model_name} trained  ·  R² = {score:.4f}  ·  RMSE = {rmse:,.2f}", "success")
 
@@ -487,6 +496,34 @@ class SalesPredictor:
         except Exception as e:
             messagebox.showerror("Prediction Error", str(e))
             self._set_status("Prediction failed", "error")
+
+    def _get_feature_importance(self, feature_names):
+        """Extract feature importance/coefficients from trained model."""
+        if self.model is None:
+            return []
+        
+        importance_list = []
+        
+        try:
+            # Linear models: use coefficients
+            if hasattr(self.model, 'coef_'):
+                coef = self.model.coef_
+                for name, val in zip(feature_names, coef):
+                    importance_list.append((name, val))
+            
+            # Tree-based models: use feature_importances_
+            elif hasattr(self.model, 'feature_importances_'):
+                importances = self.model.feature_importances_
+                for name, val in zip(feature_names, importances):
+                    importance_list.append((name, val))
+            
+            # Sort by absolute value, descending
+            importance_list.sort(key=lambda x: abs(x[1]), reverse=True)
+            return importance_list
+        
+        except Exception:
+            return []
+
 
     def exit_app(self):
         self.root.quit()
