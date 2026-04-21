@@ -7,14 +7,17 @@ A modern Python application for predicting sales using machine learning. Built w
 **Core Functionality:**
 - Load and analyze CSV files containing sales data
 - Select feature columns and define target column (sales)
-- Train Linear Regression models with optional feature scaling
-- Generate predictions on loaded or new data
+- Choose from multiple regression algorithms (Linear Regression, Ridge, Lasso, RandomForest, SVR)
+- Train models with optional feature scaling
+- Generate batch predictions on loaded data or custom single-value predictions
 - Visualize sales trends over time (requires a 'Date' column)
 
 **Data & Analysis:**
 - Display data summary statistics (row/column counts, missing values, mean, std dev)
 - Apply feature scaling (StandardScaler) for improved model performance
 - Export predictions with original data to CSV file
+- Compare different regression algorithms
+- MAE, MSE, RMSE, and R² metrics for model evaluation
 
 **User Experience:**
 - Modern dark-themed interface with intuitive layout
@@ -50,17 +53,26 @@ A modern Python application for predicting sales using machine learning. Built w
 
 4. **Configure Target:** Enter the target column name (typically "Sales").
 
-5. **Preprocessing (Optional):** Check "Apply Feature Scaling" if your features have different scales (recommended for better accuracy).
+5. **Choose Algorithm:** In the "Algorithm" section, select a regression model:
+   - **LinearRegression** — Fast, interpretable, works well for linear relationships
+   - **Ridge** — Adds regularization to prevent overfitting
+   - **Lasso** — Feature selection through regularization
+   - **RandomForest** — Handles non-linear patterns, more robust
+   - **SVR** — Support Vector Regression for complex boundaries
 
-6. **Train Model:** Click "▶ Train Model" to train the Linear Regression model. Results show MSE, RMSE, and R² score.
+6. **Preprocessing (Optional):** Check "Apply Feature Scaling" if your features have different scales (recommended for better accuracy).
 
-7. **Generate Predictions:** Click "◆ Run Predictions" to predict sales values for your data. Predictions are stored as "Predicted_Sales" column.
+7. **Train Model:** Click "▶ Train Model" to train the selected model. Results show MAE, MSE, RMSE, and R² score.
 
-8. **Export Results:** Click "💾 Export CSV" to save your data with predictions to a new CSV file.
+8. **Generate Batch Predictions:** Click "◆ Run Predictions" to predict sales values for all rows in your data. Predictions are stored as "Predicted_Sales" column.
 
-9. **View Trends:** Click "⟜ Sales Trend" to visualize sales trends over time (requires a 'Date' column in YYYY-MM-DD format).
+9. **Custom Predictions:** In the "Custom Prediction" card, enter values for each feature and click "📊 Predict" to get a quick prediction without modifying your data.
 
-10. **Exit:** Click "✕ Exit" to close the application.
+10. **Export Results:** Click "💾 Export CSV" to save your data with predictions to a new CSV file.
+
+11. **View Trends:** Click "⟜ Sales Trend" to visualize sales trends over time (requires a 'Date' column in YYYY-MM-DD format).
+
+12. **Exit:** Click "✕ Exit" to close the application.
 
 ## Data Format
 
@@ -80,13 +92,19 @@ Date,Marketing_Budget,Employees,Store_Size,Sales
 
 ## Model Details
 
-- **Algorithm:** Linear Regression
+- **Available Algorithms:**
+  - **LinearRegression** — Classical linear model, fast and interpretable
+  - **Ridge** — L2 regularization to handle multicollinearity
+  - **Lasso** — L1 regularization for automatic feature selection
+  - **RandomForest** — Ensemble method, handles non-linearity well
+  - **SVR** — Support Vector Regression, effective for complex patterns
 - **Train/Test Split:** 80% training, 20% testing
 - **Metrics Reported:**
+  - **MAE (Mean Absolute Error)** — Average absolute prediction error (in original units)
   - **MSE (Mean Squared Error)** — Average of squared prediction errors (lower is better)
   - **RMSE (Root Mean Squared Error)** — Square root of MSE in original units
   - **R² Score** — Proportion of variance explained (0-1, higher is better)
-- **Feature Scaling:** Optional StandardScaler normalization for improved convergence
+- **Feature Scaling:** Optional StandardScaler normalization (applied to all algorithms when enabled)
 
 ## Notes
 

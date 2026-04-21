@@ -1,9 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
+import numpy as np
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import matplotlib
@@ -90,6 +93,8 @@ class SalesPredictor:
         self.model = None
         self.scaler = None
         self.scale_enabled = tk.BooleanVar(value=False)
+        self.model_type = tk.StringVar(value="LinearRegression")
+        self.feature_columns = []
         self._build_ui()
 
     # ── Layout ─────────────────────────────────────────────────────────────────
@@ -208,6 +213,32 @@ class SalesPredictor:
         )
         scale_check.pack(anchor="w", pady=4)
 
+        # ── Model selection ──
+        card5, inner5 = section_card(col, "05  Algorithm")
+        card5.pack(fill="x", pady=(10, 0))
+
+        tk.Label(inner5, text="Select regression model:",
+                 font=FONT_LABEL, bg=PANEL, fg=SUBTEXT).pack(anchor="w", pady=(0, 6))
+
+        model_frame = tk.Frame(inner5, bg=BORDER,
+                               highlightbackground=ACCENT, highlightthickness=1)
+        model_frame.pack(fill="x")
+
+        self.model_combo = ttk.Combobox(
+            model_frame,
+            textvariable=self.model_type,
+            values=["LinearRegression", "Ridge", "Lasso", "RandomForest", "SVR"],
+            state="readonly",
+            font=FONT_MONO,
+            width=20
+        )
+        self.model_combo.pack(fill="x", padx=1, pady=1)
+        # Style combobox
+        self.model_combo.configure(foreground=TEXT)
+        style = ttk.Style()
+        style.configure("TCombobox", fieldbackground=PANEL, background=PANEL)
+
+
     def _build_right(self, parent):
         col = tk.Frame(parent, bg=BG)
         col.grid(row=0, column=1, sticky="nsew", pady=12)
@@ -231,6 +262,19 @@ class SalesPredictor:
                       style="secondary").pack(side="left", padx=(0, 8), expand=True, fill="x")
         styled_button(btn_inner, "✕  Exit", self.exit_app,
                       style="secondary").pack(side="left", expand=True, fill="x")
+
+        # ── Custom prediction card ──
+        card_custom, inner_custom = section_card(col, "Custom Prediction")
+        card_custom.pack(fill="x", pady=(0, 10))
+
+        tk.Label(inner_custom, text="Input values for quick prediction:",
+                 font=FONT_LABEL, bg=PANEL, fg=SUBTEXT).pack(anchor="w", pady=(0, 6))
+
+        self.custom_inputs_frame = tk.Frame(inner_custom, bg=PANEL)
+        self.custom_inputs_frame.pack(fill="x")
+
+        styled_button(inner_custom, "📊  Predict", self.predict_custom,
+                      style="success").pack(fill="x", pady=(6, 0))
 
         # ── Results / plot area ──
         card, inner = section_card(col, "Output")
@@ -343,6 +387,10 @@ class SalesPredictor:
             X = X.fillna(X.mean())
             y = self.df[target].fillna(self.df[target].mean())
 
+            # Store feature columns for custom predictions
+            self.feature_columns = X.columns.tolist()
+            self._build_custom_inputs()
+
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42)
 
@@ -354,29 +402,46 @@ class SalesPredictor:
             else:
                 self.scaler = None
 
-            self.model = LinearRegression()
+            # Create model based on selection
+            model_name = self.model_type.get()
+            if model_name == "LinearRegression":
+                self.model = LinearRegression()
+            elif model_name == "Ridge":
+                self.model = Ridge(alpha=1.0)
+            elif model_name == "Lasso":
+                self.model = Lasso(alpha=0.1)
+            elif model_name == "RandomForest":
+                self.model = RandomForestRegressor(n_estimators=100, random_state=42)
+            elif model_name == "SVR":
+                self.model = SVR(kernel='rbf', C=100)
+            else:
+                self.model = LinearRegression()
+
             self.model.fit(X_train, y_train)
 
             pred  = self.model.predict(X_test)
             mse   = mean_squared_error(y_test, pred)
             rmse  = mse ** 0.5
+            mae   = mean_absolute_error(y_test, pred)
             score = self.model.score(X_test, y_test)
 
             lines = [
                 ("title", "Training Results"),
                 ("divider", None),
+                ("metric", ("Model",           model_name)),
                 ("metric", ("Features used",     str(len(X.columns)))),
                 ("metric", ("Training samples",  f"{len(X_train):,}")),
                 ("metric", ("Test samples",       f"{len(X_test):,}")),
                 ("divider", None),
+                ("metric", ("MAE",  f"{mae:,.4f}")),
                 ("metric", ("MSE",   f"{mse:,.4f}")),
                 ("metric", ("RMSE",  f"{rmse:,.4f}")),
                 ("metric", ("R²",    f"{score:.4f}")),
                 ("divider", None),
-                ("metric", ("Model", "LinearRegression")),
+                ("metric", ("Scaling", "Enabled" if self.scaler else "Disabled")),
             ]
             self._show_result_text(lines)
-            self._set_status(f"Model trained  ·  R² = {score:.4f}  ·  RMSE = {rmse:,.2f}", "success")
+            self._set_status(f"{model_name} trained  ·  R² = {score:.4f}  ·  RMSE = {rmse:,.2f}", "success")
 
         except Exception as e:
             messagebox.showerror("Training Error", str(e))
@@ -426,6 +491,79 @@ class SalesPredictor:
     def exit_app(self):
         self.root.quit()
         self.root.destroy()
+
+    def _build_custom_inputs(self):
+        """Build input fields for custom predictions."""
+        for w in self.custom_inputs_frame.winfo_children():
+            w.destroy()
+        
+        self.custom_vars = {}
+        for col in self.feature_columns:
+            row = tk.Frame(self.custom_inputs_frame, bg=PANEL)
+            row.pack(fill="x", pady=2)
+            
+            tk.Label(row, text=col[:12], font=FONT_LABEL, bg=PANEL, fg=SUBTEXT,
+                     width=12, anchor="w").pack(side="left", padx=(0, 4))
+            
+            var = tk.StringVar()
+            self.custom_vars[col] = var
+            
+            entry = tk.Entry(row, textvariable=var, bg=BORDER, fg=TEXT,
+                           insertbackground=ACCENT, font=FONT_MONO, relief="flat",
+                           width=12, bd=2)
+            entry.pack(side="left", fill="x", expand=True)
+
+    def predict_custom(self):
+        """Make a single prediction from custom input values."""
+        if self.model is None:
+            messagebox.showerror("Error", "Train the model first.")
+            return
+        
+        if not self.feature_columns:
+            messagebox.showerror("Error", "No features available.")
+            return
+        
+        try:
+            # Gather input values
+            input_values = []
+            for col in self.feature_columns:
+                val = self.custom_vars[col].get().strip()
+                if not val:
+                    messagebox.showerror("Error", f"Please enter a value for '{col}'.")
+                    return
+                input_values.append(float(val))
+            
+            # Convert to array
+            X_custom = np.array([input_values])
+            
+            # Apply scaling if it was used during training
+            if self.scaler is not None:
+                X_custom = self.scaler.transform(X_custom)
+            
+            pred = self.model.predict(X_custom)[0]
+            
+            lines = [
+                ("title", "Single Prediction"),
+                ("divider", None),
+            ]
+            
+            # Show input values
+            for col, val in zip(self.feature_columns, input_values):
+                lines.append(("metric", (f"  {col}", f"{val:,.2f}")))
+            
+            lines.append(("divider", None))
+            lines.append(("metric", ("Predicted Value", f"{pred:,.2f}")))
+            
+            self._show_result_text(lines)
+            self._set_status(f"Prediction: {pred:,.2f}", "success")
+        
+        except ValueError:
+            messagebox.showerror("Error", "Please enter valid numeric values.")
+            self._set_status("Custom prediction failed", "error")
+        except Exception as e:
+            messagebox.showerror("Prediction Error", str(e))
+            self._set_status("Custom prediction failed", "error")
+
 
     def show_data_summary(self):
         """Display summary statistics of loaded data."""
